@@ -37,3 +37,8 @@ rsconnect/
 
 # local working dir
 shared/
+.venv
+*.pkl
+.DS_Store
+
+

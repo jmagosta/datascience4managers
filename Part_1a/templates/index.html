@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Flask with Bokeh</title>
+    <style>
+        html, body {
+          box-sizing: border-box;
+          display: flow-root;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+        }
+      </style>
+      <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.5.2.min.js"></script>
+      <script type="text/javascript">
+          Bokeh.set_log_level("info");
+      </script>
+</head>
+<body>
+    <div>
+    {{ div | safe }}
+    {{ script | safe }}
+</div>
+</body>
+</html>
