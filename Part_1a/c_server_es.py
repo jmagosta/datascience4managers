@@ -11,7 +11,7 @@ import pandas as pd
 
 from bokeh.events import ButtonClick, DocumentEvent
 from bokeh.layouts import column
-from bokeh.models import ColumnDataSource, CustomJS, Button, Range1d, RangeSlider
+from bokeh.models import ColumnDataSource, CustomJS, Button, Div, Range1d, Slider
 from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc
 
@@ -20,6 +20,7 @@ from numpy.random import default_rng
 rng = default_rng(seed=142)
 
 INITIAL_WEALTH = 1E6
+DEFAULT_AT_RISK = 0.5
 SIMULATION_COUNT = 10                     # Number of simulated trajectories
 WIN_P = 0.55                               # Prob a wager will win
 NUM_PERIODS = 12                          # Repetitions of the wager. 
@@ -45,7 +46,7 @@ def wealth_trajectory(win_p_estimate):
     plus_minus = (2*wins-1) 
     # kelly strategy plus some jitter.
     fraction_at_risk = kelly_rule(win_p_estimate) * plus_minus
-    print(sum(fraction_at_risk))
+    # print(sum(fraction_at_risk))
     # Compute both wealth update and randomized update time
     w_x = np.zeros((NUM_PERIODS))
     w_y = np.zeros((NUM_PERIODS))
@@ -67,11 +68,11 @@ def run_simulations():
 
 def chosen_trajectory(invest_fraction, past_trajectory, win_or_lose):
     'Compute the next increment of the investors wealth.'
-    fraction_at_risk = invest_fraction * (2 * win_or_lose -1)
-    print(f'\t {win_or_lose}, {fraction_at_risk}')
+    delta_fraction = invest_fraction * (2 * win_or_lose -1)
+    # print(f'\t {win_or_lose}, {delta_fraction}')
     # x
     past_trajectory['x'].append(past_trajectory['x'][-1] +1)
-    past_trajectory['y'].append(past_trajectory['y'][-1] * (1 + fraction_at_risk))
+    past_trajectory['y'].append(past_trajectory['y'][-1] * (1 + delta_fraction))
     return past_trajectory
 
 
@@ -95,34 +96,83 @@ def plot_simulations(past_trajectory, x,y, cycle):
     p.step(x=past_trajectory['x'], y=past_trajectory['y'], line_color='darkred', line_width=3)
     return(p)
 
+### Callbacks 
+def slider_handler(attr, old_v, new_v):
+    'respond to changes in the slider value'
+    global fraction_at_risk, value_at_risk, ds
+    fraction_at_risk = float(new_v)
+    # Display the dollar amount at risk
+    value_at_risk = int(fraction_at_risk *  past_trajectory['y'][-1])
+    ds.data['value'] = [value_at_risk]
+    print('ds', ds.data['value'])
+    # print(f'value_at_risk {value_at_risk}')
+
 # create a callback that adds a number in a random location
 def button_callback():
     'Run the next investment cycle'
-    global investment_cycle, past_trajectory, a_layout
-
+    global investment_cycle, past_trajectory, a_layout, ds
     investment_cycle +=1
-    past_trajectory = chosen_trajectory(2*WIN_P-1, past_trajectory, rng.binomial(1, WIN_P, 1)[0])
+    
+    print(f"fraction @ Button {fraction_at_risk:.2}, {ds.data['value']}\n")
+    past_trajectory = chosen_trajectory(fraction_at_risk, past_trajectory, rng.binomial(1, WIN_P, 1)[0])
     x,y = run_simulations()
     trajectories = plot_simulations(past_trajectory, x,y, investment_cycle)
-    new_layout = column(trajectories, a_press, range_slider)
+    # Update the value at risk given the new wealth
+    value_at_risk = int(fraction_at_risk *  past_trajectory['y'][-1]) 
+    ds.data['value'] = [value_at_risk]
+    new_layout = column(trajectories, d, a_press, fraction_slider)
     a_layout.children = new_layout.children
     print( f'{investment_cycle}: W=${past_trajectory['y'][-1]:.0f}')
 
+# Called pretty much anytime something happens.
+# This is needed to force a re-plot. 
 def re_render(the_event):
-    global a_layout, a_press, range_slider
+    global a_layout, a_press, fraction_slider
+    print('render ds', ds.data['value'])
     pass
-    # print(f're_render {investment_cycle}, {the_event}')
 
-### MAIN ###
+    
+
+### MAIN #####################################################################
 
 investment_cycle = 1
+fraction_at_risk = 0.0
+value_at_risk = int(INITIAL_WEALTH * DEFAULT_AT_RISK)
+# History of investment
 past_trajectory = dict(x=[0], y=[INITIAL_WEALTH])
 
+# ColumnDataSource takes lists as dictionary values
+ds = ColumnDataSource(data=dict(frac=[fraction_at_risk], value=[value_at_risk]))
+
+d = Div(text=f"<font size='10'> investment: {ds.data['value'][0]} </font>")
+
     # Create widgets
-range_slider = RangeSlider(start=0, end=10, value=(1,9), step=.1, title="Stuff")
-range_slider.js_on_change("value", CustomJS(code="""
-    console.log('range_slider: value=' + this.value, this.toString())                                           
-    """))
+fraction_slider = Slider(start=0, end=1.0, value=DEFAULT_AT_RISK, step=.01, title="Investment fraction", name='fraction_at_risk')
+fraction_slider.js_on_change("value", CustomJS(args = dict(d=d, ds=ds), code=""" 
+    var df = ds.data['value'][0];
+    console.log('ds =', df);
+    d.text=  `<font size='10'>Investment: ${df}</font>`                      
+     """))                            
+    #                          CustomJS(code="""
+    # console.log('fraction_slider: value=' + this.value, this.toString())                                           
+
+fraction_slider.on_change("value", slider_handler)
+
+
+
+# the callback object cb_obj and callback data cb_data are available in each JS callback. 
+# Additionally, when using args callback attribute 
+# you can pass arbitrary number of additional objects
+# ds.js_on_change("data", CustomJS(args=dict(d=d), "d.text = `<font size='40'>Value: ${cb_obj.data['value'][0]}`;</font>"))
+# ds.js_on_change("value", CustomJS(args=dict(ds=ds),code= "console.log('ds ='  + ds"))
+                                 
+
+# def update_var():
+#     ''
+#     global ds
+#     ds.data['value'][0] = [value_at_risk]
+
+# ds.on_change('data', update_var)
 
 # add a text renderer to the plot (no data yet)
 # r = p.text(x=[], y=[], text=[], text_color=[], text_font_size="26px",
@@ -133,6 +183,11 @@ range_slider.js_on_change("value", CustomJS(code="""
 a_press = Button(label="Update investment")
 a_press.button_type ='danger'
 a_press.on_event('button_click', button_callback)
+a_press.js_on_click(CustomJS(args = dict(d=d, ds=ds), code=""" 
+    var df = ds.data['value'][0];
+    console.log('ds =', df);
+    d.text=  `<font size='10'>Bnvestment: ${df}</font>`                      
+     """))  
 
 past_trajectory = chosen_trajectory(2*WIN_P-1, past_trajectory, rng.binomial(1, WIN_P,1)[0])
 x,y = run_simulations()
@@ -142,5 +197,5 @@ curdoc().on_change(re_render)
 # curdoc().js_on_event(DocumentEvent, CustomJS(code='console.log("JS:DocumentEvent")'))
 
 # put the button and plot in a layout and add to the document
-a_layout = column(trajectories, a_press, range_slider)
+a_layout = column(trajectories, d, a_press, fraction_slider)
 curdoc().add_root(a_layout)
