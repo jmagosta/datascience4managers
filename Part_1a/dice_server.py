@@ -71,6 +71,7 @@ def plot_simulations(x,y):
     y_axis_label = 'Accumulated wealth')
     # p.x_range = Range1d()
     # p.y_range = Range1d(0, max(y[NUM_PERIODS-1,:]))
+    p.xaxis.minor_tick_line_color = None
     for k in range(SIMULATION_COUNT):
         w_df = pd.DataFrame({'y': y[:,k], 'x': x[:,k]})
         sim_src = ColumnDataSource(w_df)
@@ -78,11 +79,11 @@ def plot_simulations(x,y):
     return(p)
 
 
-def create_bokeh_plot():
+def create_bokeh_pane():
     # Create a figure
-    trajectories = figure(title="Wealth over Time ",x_axis_label='Trial', y_axis_label='Wealth')
-
-
+    x,y = run_simulations()
+    trajectories = plot_simulations(x,y)
+    # Create widgets
     range_slider = RangeSlider(start=0, end=10, value=(1,9), step=.1, title="Stuff")
     range_slider.js_on_change("value", CustomJS(code="""
     console.log('range_slider: value=' + this.value, this.toString())                                           
@@ -100,15 +101,12 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    html_component = create_bokeh_plot()
+    html_component = create_bokeh_pane()
     return html_component
 
 ### MAIN ###
 
 if __name__ == "__main__":
-    # app.run(port = 8080)   # The mac uses port 5000 for airplay, so change the default port
+    app.run(port = 8080)   # The mac uses port 5000 for airplay, so change the default port
 
-    x,y = run_simulations()
-    p= plot_simulations(x,y)
-    show(p)
-    print(pd.DataFrame(x).describe())
+    # print(pd.DataFrame(x).describe())

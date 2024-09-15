@@ -1,7 +1,9 @@
+# c_server/main.py 
+# 
 # c_server_es.py
 #
 # To Run:
-# $ bokeh serve --show c_server_es.py --port=8090
+# Part1a/ $ bokeh serve --show c_server --port=8090
 
 import os, sys
 from pathlib import Path
@@ -10,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from bokeh.events import ButtonClick, DocumentEvent
-from bokeh.layouts import column
+from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource, CustomJS, Button, Div, Range1d, Slider
 from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc
@@ -103,6 +105,7 @@ def slider_handler(attr, old_v, new_v):
     fraction_at_risk = float(new_v)
     # Display the dollar amount at risk
     value_at_risk = int(fraction_at_risk *  past_trajectory['y'][-1])
+    ds.data['frac'] = [fraction_at_risk]
     ds.data['value'] = [value_at_risk]
     print('ds', ds.data['value'])
     # print(f'value_at_risk {value_at_risk}')
@@ -120,7 +123,7 @@ def button_callback():
     # Update the value at risk given the new wealth
     value_at_risk = int(fraction_at_risk *  past_trajectory['y'][-1]) 
     ds.data['value'] = [value_at_risk]
-    new_layout = column(trajectories, d, a_press, fraction_slider)
+    new_layout = controls(trajectories, d, a_press, fraction_slider)
     a_layout.children = new_layout.children
     print( f'{investment_cycle}: W=${past_trajectory['y'][-1]:.0f}')
 
@@ -128,15 +131,20 @@ def button_callback():
 # This is needed to force a re-plot. 
 def re_render(the_event):
     global a_layout, a_press, fraction_slider
-    print('render ds', ds.data['value'])
+    print('render ds, frac, value: ', ds.data['frac'], ds.data['value'])
     pass
+
+def controls(trajectories, d, a_press, fraction_slider):
+    new_layout = column(trajectories, row(fraction_slider, d,  a_press))
+    return new_layout
+
 
     
 
 ### MAIN #####################################################################
 
 investment_cycle = 1
-fraction_at_risk = 0.0
+fraction_at_risk = DEFAULT_AT_RISK
 value_at_risk = int(INITIAL_WEALTH * DEFAULT_AT_RISK)
 # History of investment
 past_trajectory = dict(x=[0], y=[INITIAL_WEALTH])
@@ -197,5 +205,5 @@ curdoc().on_change(re_render)
 # curdoc().js_on_event(DocumentEvent, CustomJS(code='console.log("JS:DocumentEvent")'))
 
 # put the button and plot in a layout and add to the document
-a_layout = column(trajectories, d, a_press, fraction_slider)
+a_layout = controls(trajectories, d, a_press, fraction_slider)
 curdoc().add_root(a_layout)
