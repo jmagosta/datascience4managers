@@ -27,7 +27,7 @@ rng = default_rng(seed=142)
 INITIAL_WEALTH = 1E6
 DEFAULT_AT_RISK = 0.5
 SIMULATION_COUNT = 10                     # Number of simulated trajectories
-WIN_P = 0.55                              # Prob a wager will win
+WIN_P = 0.75                              # Prob a wager will win
 NUM_PERIODS = 12                          # Repetitions of the wager. 
 PKL_FILENAME = f'trajectories_{NUM_PERIODS}_by_{SIMULATION_COUNT}.pkl'
 LOG_FILE = f'dice_{WIN_P}.csv'
@@ -147,11 +147,11 @@ def button_callback():
     print(f"fraction @ Button {fraction_at_risk:.2}, {bet.data['value']}")
     win_p = rng.binomial(1, WIN_P, 1)[0]
     past_trajectory = chosen_trajectory(fraction_at_risk, past_trajectory, win_p)
-    x,y = run_simulations()
+    x,y = run_simulations()   #TODO - don't recompute these each time.  
     trajectories = plot_simulations(past_trajectory, x,y, investment_cycle)
     # Update the value at risk given the new wealth
-    # NOTE is is already set in the slider callback?
-    # value_at_risk = int(fraction_at_risk *  past_trajectory['w'][-1]) 
+    # NOTE Is the fraction at risk been updated? is is already set in the slider callback?
+    value_at_risk = int(fraction_at_risk *  past_trajectory['w'][-1]) 
     bet.data['value'] = [value_at_risk]
     new_layout = controls(trajectories, d, a_press, fraction_slider)
     a_layout.children = new_layout.children
@@ -160,6 +160,7 @@ def button_callback():
 
 # Called pretty much anytime something happens.
 # This is needed to force a re-plot. 
+# TODO - after a bet, update the betting value to reflect the new wealth. 
 def re_render(the_event):
     global a_layout, a_press, fraction_slider
     # print('render bet, frac, value: ', bet.data['frac'], bet.data['value'])
@@ -214,7 +215,7 @@ a_press.on_event('button_click', button_callback)
 a_press.js_on_click(CustomJS(args = dict(d=d, bets=bet), code=""" 
     var df = bets.data['value'][0];
     console.log('bets =', df);
-    d.text=  `<font size='10'>Bnvestment: ${df}</font>`                      
+    d.text=  `<div font size='10'>Bnvestment: ${df}</div>`     # TODO - update this                  
      """))  
 
 ### starting values
@@ -238,5 +239,6 @@ curdoc().on_change(re_render)
 # curdoc().js_on_event(DocumentEvent, CustomJS(code='console.log("JS:DocumentEvent")'))
 
 # put the button and plot in a layout and add to the document
+# TODO add a quit button. 
 a_layout = controls(trajectory_plot, d, a_press, fraction_slider)
 curdoc().add_root(a_layout)

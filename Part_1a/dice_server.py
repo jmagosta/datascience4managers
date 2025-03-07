@@ -94,7 +94,9 @@ def create_bokeh_pane():
     # Return the plot components for embedding
     script, div = components(slider_plot_layout)
     # render_template uses jinja2 templating
-    return render_template('./index.html', script=script, div=div)
+    print(os.getcwd())
+    print(os.listdir(os.getcwd()))
+    return render_template('/Users/jma/repos/datascience4managers/Part_1a/templates/index.html', script=script, div=div)
 
 
 app = Flask(__name__)
@@ -107,6 +109,6 @@ def index():
 ### MAIN ###
 
 if __name__ == "__main__":
-    app.run(port = 8080)   # The mac uses port 5000 for airplay, so change the default port
+    app.run(port = 8081)   # The mac uses port 5000 for airplay, so change the default port
 
     # print(pd.DataFrame(x).describe())
